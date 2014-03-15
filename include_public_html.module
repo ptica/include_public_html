@@ -1,0 +1,134 @@
+<?php
+/**
+ * @file
+ * Module file for include_public_html.
+ */
+
+/**
+ * @defgroup include_public_html Example: Filter
+ * @ingroup examples
+ * @{
+ * Demonstrates the creation of filters.
+
+ * This is an example outlining how a module can be used to define a filter
+ * to be run on user-submitted content before it is output to the browser.
+ *
+ * To show all the capabilities of the filter system, we will define two filters
+ * in this module. One will substitute the string "foo" with an
+ * administratively-defined replacement string. The other will find a custom
+ * XML tag, <time />, and replace it by the current time.
+ *
+ * Foo filter
+ *
+ * Drupal has several content formats (they are not filters), and in our example
+ * the foo replacement can be configured for each one of them, allowing an html
+ * or php replacement, so the module includes a settings callback, with options
+ * to configure that replacements. Also, a Tips callback will help showing the
+ * current replacement for the content type being edited.
+ *
+ * Time filter.
+ *
+ * This filter is a little trickier to implement than the previous one.
+ * Since the input involves special HTML characters (< and >) we have to
+ * run the filter before HTML is escaped/stripped by other filters. But
+ * we want to use HTML in our result as well, and so if we run this filter
+ * first our replacement string could be escaped or stripped. The solution
+ * is to use the "prepare" operation to escape the special characters, and
+ * to later replace our escaped version in the "process" step.
+ */
+
+
+/**
+ * Implements hook_filter_info().
+ *
+ * Here we define the different filters provided by the module.
+ */
+function include_public_html_filter_info() {
+  $filters['filter_include_public_html'] = array(
+    'title' => t('Biblio filter'),
+    'description' => t('Every instance of "include_public_html" in the input text will be replaced with a preconfigured replacement.'),
+    'process callback'  => '_include_public_html_filter_process',
+    'default settings' => array(
+      'include_public_html_dir' => '/home',
+    ),
+    'settings callback' => '_include_public_html_filter_settings',
+    'tips callback' => '_include_public_html_filter_tips',
+  );
+  return $filters;
+}
+
+
+/*
+ * Drupal has several text formats (they are not filters), and in our example
+ * the include_public_html replacement can be configured for each one of them, so the module
+ * includes a settings callback, with options to configure those replacements.
+ * Also, a Tips callback will help showing the current replacement
+ * for the content type being edited.
+ */
+
+/**
+ * Settings callback for include_public_html filter
+ *
+ * Make use of $format to have different replacements for every input format.
+ * Since we allow the administrator to define the string that gets substituted
+ * when "include_public_html" is encountered, we need to provide an interface for this kind of
+ * customization. The object format is also an argument of the callback.
+ *
+ * The settings defined in this form are stored in database by the filter
+ * module, and they will be available in the $filter argument.
+ */
+function _include_public_html_filter_settings($form, $form_state, $filter, $format, $defaults) {
+  $settings['include_public_html_filter'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Include public HTML fragments directory'),
+    '#default_value' => isset($filter->settings['include_public_html_dir']) ? $filter->settings['include_public_html_dir'] : $defaults['include_public_html_dir'],
+    '#description' => t('Directory that contains prerendered html fragments for "[include_public_html]username/file_name.html[/include_public_html]" tags in the text.')
+  );
+  return $settings;
+}
+
+/**
+ * Biblio filter process callback.
+ *
+ * The actual filtering is performed here. The supplied text should be returned,
+ * once any necessary substitutions have taken place. The example just replaces
+ * include_public_html with our custom defined string in the settings page.
+ */
+function _include_public_html_filter_process($text, $filter, $format) {
+  return preg_replace_callback('/\[include_public_html\](.*)\[\/include_public_html\]/', '_include_public_html_filter_cb', $text);
+}
+
+function _include_public_html_filter_cb($matches) {
+	$username = @$matches[1];
+	$dir = isset($filter->settings['include_public_html_dir']) ? $filter->settings['include_public_html_dir'] : '/home';
+	$file = "$dir/$username";
+	$include_public_html = "Public HTML content for '$username' not available"; // default text
+	if (file_exists($file)) {
+		$include_public_html = file_get_contents($file);
+	}
+	return $include_public_html;
+}
+
+
+/**
+ * Filter tips callback for include_public_html filter.
+ *
+ * The tips callback allows filters to provide help text to users during the
+ * content editing process. Short tips are provided on the content editing
+ * screen, while long tips are provided on a separate linked page. Short tips
+ * are optional, but long tips are highly recommended.
+ */
+function _include_public_html_filter_tips($filter, $format, $long = FALSE) {
+  $replacement = isset($filter->settings['include_public_html_dir']) ? $filter->settings['include_public_html_dir'] : 'REPLACEMENT';
+  if (!$long) {
+    // This string will be shown in the content add/edit form
+    return t('<em>[include_public_html][/include_public_html]</em> replaced with %replacement.', array('%replacement' => $replacement));
+  }
+  else {
+    return t('Every instance of "[include_public_html]username[/include_public_html]" in the input text will be replaced with a include_public_html publications list. You can configure the source dir containing prepared replacements.', array('%replacement' => $replacement));
+  }
+}
+
+/**
+ * @} End of "defgroup include_public_html".
+ */

@@ -1,0 +1,5 @@
+name = Include public HTML file Filter
+description = Include HTML fragments
+package = "Filters"
+dependencies[] = filter
+core = 7.x
